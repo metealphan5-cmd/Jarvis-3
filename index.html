@@ -11,21 +11,24 @@
   <style>
     body {
       margin: 0;
-      background: #02090d;
+      min-height: 100vh;
+      background: #02080c;
       color: #00eaff;
       font-family: Arial, sans-serif;
       text-align: center;
     }
 
     h1 {
-      margin-top: 40px;
-      font-size: 50px;
-      letter-spacing: 8px;
+      margin-top: 50px;
+      font-size: 55px;
+      letter-spacing: 10px;
       text-shadow: 0 0 20px #00eaff;
     }
 
     #durum {
-      margin: 25px;
+      margin: 30px auto;
+      width: 80%;
+      min-height: 30px;
       font-size: 20px;
     }
 
@@ -34,18 +37,18 @@
       width: 280px;
       margin: 20px auto;
       padding: 18px;
-      background: transparent;
-      color: #00eaff;
       border: 2px solid #00eaff;
       border-radius: 12px;
-      font-size: 20px;
+      background: transparent;
+      color: #00eaff;
+      font-size: 19px;
       cursor: pointer;
       box-shadow: 0 0 15px #00eaff;
     }
 
     button:hover {
       background: #00eaff;
-      color: #02090d;
+      color: #02080c;
     }
   </style>
 </head>
@@ -56,84 +59,107 @@
 
   <div id="durum">Sistem hazır.</div>
 
-  <button onclick="konus()">JARVIS KONUŞ</button>
-  <button onclick="dinle()">BENİ DİNLE</button>
+  <button id="konusButonu">JARVIS KONUŞ</button>
+  <button id="dinleButonu">BENİ DİNLE</button>
 
   <script>
     const durum = document.getElementById("durum");
+    const konusButonu = document.getElementById("konusButonu");
+    const dinleButonu = document.getElementById("dinleButonu");
 
-    function seslendir(metin) {
+    function konus(metin) {
+      durum.textContent = metin;
+
       const ses = new SpeechSynthesisUtterance(metin);
 
       ses.lang = "tr-TR";
+      ses.rate = 0.9;
       ses.pitch = 0.75;
-      ses.rate = 0.95;
       ses.volume = 1;
-
-      const sesler = speechSynthesis.getVoices();
-
-      const erkekSes = sesler.find(v =>
-        v.lang.toLowerCase().startsWith("tr") &&
-        /male|erkek|murat|cem|ali|mehmet/i.test(v.name)
-      );
-
-      const turkceSes = sesler.find(v =>
-        v.lang.toLowerCase().startsWith("tr")
-      );
-
-      if (erkekSes) {
-        ses.voice = erkekSes;
-      } else if (turkceSes) {
-        ses.voice = turkceSes;
-      }
 
       speechSynthesis.cancel();
       speechSynthesis.speak(ses);
     }
 
-    function konus() {
-      durum.innerText = "JARVIS konuşuyor...";
-      seslendir("Merhaba. Ben JARVIS. Sistemlerim hazır.");
+    konusButonu.addEventListener("click", function () {
+      konus("Merhaba. Ben JARVIS. Sistemlerim hazır.");
+    });
 
-      setTimeout(() => {
-        durum.innerText = "Sistem hazır.";
-      }, 3000);
-    }
+    dinleButonu.addEventListener("click", function () {
 
-    function dinle() {
       const SpeechRecognition =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
-        durum.innerText = "Tarayıcınız sesli tanımayı desteklemiyor.";
+        durum.textContent =
+          "Bu tarayıcı sesli komut özelliğini desteklemiyor.";
         return;
       }
 
-      const recognition = new SpeechRecognition();
+      const tanima = new SpeechRecognition();
 
-      recognition.lang = "tr-TR";
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      tanima.lang = "tr-TR";
+      tanima.continuous = false;
+      tanima.interimResults = false;
 
-      durum.innerText = "Seni dinliyorum...";
+      durum.textContent = "Seni dinliyorum...";
 
-      recognition.start();
+      tanima.start();
 
-      recognition.onresult = async function(event) {
-        const kullaniciMetni =
-          event.results[0][0].transcript;
+      tanima.onresult = async function (event) {
 
-        durum.innerText = "JARVIS düşünüyor...";
+        const soru = event.results[0][0].transcript;
+
+        durum.textContent = "JARVIS düşünüyor...";
 
         try {
-          const cevap = await puter.ai.chat(
-            kullaniciMetni,
-            {
-              model: "gpt-5.6-luna"
-            }
-          );
 
-          const metin =
-            typeof cevap === "string"
+          const cevap = await puter.ai.chat(soru, {
+            model: "gpt-5.6-luna"
+          });
+
+          let metin = "";
+
+          if (typeof cevap === "string") {
+            metin = cevap;
+          } else if (cevap?.message?.content) {
+            metin = cevap.message.content;
+          } else if (cevap?.text) {
+            metin = cevap.text;
+          } else {
+            metin = "Cevap alınamadı.";
+          }
+
+          durum.textContent = metin;
+
+          const ses = new SpeechSynthesisUtterance(metin);
+          ses.lang = "tr-TR";
+          ses.rate = 0.9;
+          ses.pitch = 0.75;
+          ses.volume = 1;
+
+          speechSynthesis.cancel();
+          speechSynthesis.speak(ses);
+
+        } catch (hata) {
+
+          console.error(hata);
+
+          durum.textContent =
+            "Yapay zekâya bağlanırken bir hata oluştu.";
+
+          konus("Üzgünüm. Yapay zekâya bağlanırken bir hata oluştu.");
+        }
+      };
+
+      tanima.onerror = function (event) {
+        durum.textContent =
+          "Mikrofon hatası: " + event.error;
+      };
+    });
+  </script>
+
+</body>
+</html>
 ```
