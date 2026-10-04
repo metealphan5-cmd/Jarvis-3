@@ -1,0 +1,341 @@
+```html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S.</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #02070d;
+            color: #00d9ff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        .jarvis {
+            padding: 35px 20px;
+        }
+
+        h1 {
+            font-size: 38px;
+            letter-spacing: 8px;
+            text-shadow: 0 0 20px #00d9ff;
+        }
+
+        .reactor {
+            width: 180px;
+            height: 180px;
+            margin: 40px auto;
+            border: 4px solid #00d9ff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 30px #00d9ff;
+            animation: pulse 2s infinite;
+        }
+
+        .core {
+            width: 80px;
+            height: 80px;
+            background: #00d9ff;
+            border-radius: 50%;
+            box-shadow: 0 0 40px #00d9ff;
+        }
+
+        @keyframes pulse {
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        button {
+            padding: 14px 22px;
+            margin: 8px;
+            background: #062b3d;
+            color: #00d9ff;
+            border: 1px solid #00d9ff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #0a4058;
+            box-shadow: 0 0 15px #00d9ff;
+        }
+
+        #result {
+            margin: 25px auto;
+            max-width: 700px;
+            font-size: 18px;
+            min-height: 40px;
+            line-height: 1.6;
+        }
+
+        #wakeStatus {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="jarvis">
+
+    <h1>J.A.R.V.I.S.</h1>
+
+    <div class="reactor">
+        <div class="core"></div>
+    </div>
+
+    <p id="status">SYSTEM ONLINE</p>
+
+    <button onclick="jarvisSpeak()">
+        🔊 JARVIS KONUŞ
+    </button>
+
+    <button onclick="startListening()">
+        🎤 BENİ DİNLE
+    </button>
+
+    <p id="wakeStatus">
+        JARVIS hazır.
+    </p>
+
+    <p id="result">
+        JARVIS hazır, efendim.
+    </p>
+
+</div>
+
+<script src="https://js.puter.com/v2/"></script>
+
+<script>
+
+let konusmaGecmisi = [
+    {
+        role: "system",
+        content:
+            "Sen JARVIS adında zeki ve yardımsever bir yapay zeka asistanısın. " +
+            "Kullanıcı Türkçe konuşuyorsa Türkçe cevap ver. " +
+            "Kullanıcıya efendim diye hitap et. " +
+            "Asla hacı abi deme. " +
+            "Cevaplarını doğal ve anlaşılır ver. " +
+            "Markdown kullanma. " +
+            "Emoji kullanmamaya çalış."
+    }
+];
+
+
+// SES METNİNİ TEMİZLE
+
+function sesMetniniTemizle(metin) {
+
+    return metin
+        .replace(/\*/g, "")
+        .replace(/_/g, "")
+        .replace(/#/g, "")
+        .replace(/`/g, "")
+        .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+        .replace(/[\u{2600}-\u{27BF}]/gu, "")
+        .replace(/[\u{FE00}-\u{FE0F}]/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+// ERKEK TÜRKÇE SESİNİ BUL
+
+function erkekTurkceSesiBul() {
+
+    const sesler =
+        speechSynthesis.getVoices();
+
+    if (!sesler.length) {
+        return null;
+    }
+
+    // Önce Türkçe sesleri bul
+    const turkceSesler =
+        sesler.filter(function(ses) {
+
+            return ses.lang &&
+                   ses.lang.toLowerCase().startsWith("tr");
+        });
+
+    if (!turkceSesler.length) {
+        return null;
+    }
+
+    // Erkek olduğu bilinen / erkek adı taşıyan sesleri önceliklendir
+    const erkekSes =
+        turkceSesler.find(function(ses) {
+
+            const isim =
+                ses.name.toLowerCase();
+
+            return (
+                isim.includes("male") ||
+                isim.includes("erkek") ||
+                isim.includes("murat") ||
+                isim.includes("cem") ||
+                isim.includes("ahmet") ||
+                isim.includes("mehmet")
+            );
+        });
+
+    if (erkekSes) {
+        return erkekSes;
+    }
+
+    // Uygun erkek sesi bulunamazsa ilk Türkçe sesi kullan
+    return turkceSesler[0];
+}
+
+
+// SESLENDİR
+
+function seslendir(metin) {
+
+    const temizMetin =
+        sesMetniniTemizle(metin);
+
+    speechSynthesis.cancel();
+
+    const ses =
+        new SpeechSynthesisUtterance(
+            temizMetin
+        );
+
+    ses.lang = "tr-TR";
+    ses.rate = 0.88;
+    ses.pitch = 0.75;
+    ses.volume = 1;
+
+    const erkekSes =
+        erkekTurkceSesiBul();
+
+    if (erkekSes) {
+        ses.voice = erkekSes;
+    }
+
+    speechSynthesis.speak(ses);
+}
+
+
+// JARVIS KONUŞ
+
+async function jarvisSpeak() {
+
+    const result =
+        document.getElementById("result");
+
+    result.textContent =
+        "JARVIS düşünüyor...";
+
+    try {
+
+        const cevap =
+            await puter.ai.chat(
+                "Merhaba JARVIS. Türkçe, doğal ve kısa bir şekilde selam ver. Kullanıcıya efendim diye hitap et.",
+                {
+                    model: "gpt-5.6-luna"
+                }
+            );
+
+        let metin = "";
+
+        if (cevap?.message?.content) {
+            metin = cevap.message.content;
+        } else {
+            metin = String(cevap);
+        }
+
+        result.textContent =
+            "JARVIS: " + metin;
+
+        seslendir(metin);
+
+    } catch (error) {
+
+        console.error(error);
+
+        result.textContent =
+            "Hata oluştu: " + error;
+    }
+}
+
+
+// MİKROFON
+
+function startListening() {
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+
+        document.getElementById("result").textContent =
+            "Chrome ses tanımayı desteklemiyor.";
+
+        return;
+    }
+
+    const recognition =
+        new SpeechRecognition();
+
+    recognition.lang = "tr-TR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    document.getElementById("wakeStatus").textContent =
+        "Dinliyorum efendim...";
+
+    document.getElementById("result").textContent =
+        "Sizi dinliyorum...";
+
+    recognition.start();
+
+
+    recognition.onresult =
+        async function(event) {
+
+            const text =
+                event.results[0][0].transcript;
+
+            document.getElementById("result").textContent =
+                "Sen: " + text;
+
+            await askJarvis(text);
+
+            document.getElementById("wakeStatus").textContent =
+                "JARVIS hazır.";
+        };
+
+
+    recognition.onerror =
+        function(event) {
+
+            document.getElementById("result").textContent =
+                "Mikrofon hatası: " +
+                event.error;
+
+            document.getElementById("wakeStatus").textContent =
+                "JARVIS hazır.";
+        };
+}
+
+
+// JARVIS'A SOR
+
+async function askJarvis(text) {
+
+    const result =
+        document.getElementById
+```
